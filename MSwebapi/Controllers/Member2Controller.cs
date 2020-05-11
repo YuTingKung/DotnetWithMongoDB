@@ -179,5 +179,23 @@ namespace MSwebapi.Controllers
             }
             return response;
         }
+        //[指令6]會員姓名分群，找出是否有使用者名字相同
+        [Route("api/group/")]
+        [HttpGet]
+        public GetMemberlnfoResponse Group(string id)
+        {
+            var response = new GetMemberlnfoResponse();
+            MongoClient client = new MongoClient("mongodb://localhost:27017");
+            MongoDatabaseBase db = client.GetDatabase("ntut") as MongoDatabaseBase;
+            var memberCollection = db.GetCollection<MembersCollection>("members");
+            var query = Builders<MembersCollection>.Filter.Empty;
+            var nameList = memberCollection.Aggregate().Match(query).Group(e => e.Name, e => new { Name = e.Key, Count = e.Count()}).ToList();
+            if (nameList.Any(e => e.Count > 1))
+            {
+                response.ok = false;
+                response.errMsg = "有會員名字重複";
+            }
+            return response;
+        }
     }
 }
