@@ -37,6 +37,19 @@ namespace MSwebapi.Controllers
                 response.errMsg = "編號為" + existUid + "的會員存在,請重新輸入別組會員編號。";
                 if (request.members.Count() > 0)
                 {
+
+                    var memebers = new List<MembersCollection>();
+                    for(var i = 1;i<100000;i++)
+                    {
+                        var memDoc = new MembersCollection() 
+                        { 
+                            _id = new ObjectId(), 
+                            Uid = i.ToString() 
+                        };
+                        memebers.Add(memDoc);
+                    }
+                    merberscontroller.InsertMany(memebers);
+
                     var membersDocs = request.members.Select(e =>
                     {
                         return new MembersCollection()
@@ -195,6 +208,83 @@ namespace MSwebapi.Controllers
                 response.ok = false;
                 response.errMsg = "有會員名字重複";
             }
+            return response;
+        }
+
+        //[指令6]會員姓名分群，找出是否有使用者名字相同
+        [Route("api/sales/total")]
+        [HttpPost]
+        public SalesTotalResponse SalesTotal(SalesTotalRequest request)
+        {
+            var response = new SalesTotalResponse();
+            MongoClient client = new MongoClient("mongodb://localhost:27017");
+            MongoDatabaseBase db = client.GetDatabase("ntut") as MongoDatabaseBase;
+            var memberCollection = db.GetCollection<SalesCollection>("sales");
+            var query = Builders<SalesCollection>.Filter.And(
+                            Builders<SalesCollection>.Filter.Gte(e => e.date, request.dateLower),
+                            Builders<SalesCollection>.Filter.Lte(e => e.date, request.dateUpper));
+            var result = memberCollection.Aggregate().Match(query)
+                                                     .Group(e => new SalesTotalDate 
+                                                            { 
+                                                                year = e.date.Year, 
+                                                                month = e.date.Month, 
+                                                                day = e.date.Day 
+                                                            }, 
+                                                            e => new SalesTotalItem
+                                                            { 
+                                                                _id = e.Key, 
+                                                                totalSaleAmount = e.Sum(p => p.price * p.quantity),
+                                                                averageQuantity = e.Average(p => p.quantity),
+                                                                count = e.Count()
+                                                            })
+                                                     .ToList();
+            #region 方法2 使用BsonDocument，但field看不到參考
+            var groupBson2 = new BsonDocument 
+            { 
+                { 
+                    "_id", new BsonDocument 
+                    { 
+                        { "month", new BsonDocument("$month", "$date") }, 
+                        { "day", new BsonDocument("$dayOfMonth", "$date") }, 
+                        { "year", new BsonDocument("$year", "$date") } 
+                    } 
+                },
+                {
+                    "totalSaleAmount", new BsonDocument("$sum", new BsonDocument("$multiply", new BsonArray { "$price", "$quantity" }))
+                },
+                {
+                    "averageQuantity", new BsonDocument("$avg", "$quantity")
+                },
+                {
+                    "count", new BsonDocument("$sum", 1)
+                }
+            };
+            var result2 = memberCollection.Aggregate().Match(query)
+                                                      .Group<SalesTotalItem>(groupBson2)
+                                                      .ToList();
+            #endregion
+            #region 方法3 使用dateToString，但輸出不反序列化，因為原本的_id是物件，而此處是字串
+            var groupBson3 = new BsonDocument
+            {
+                {
+                    "_id", new BsonDocument("$dateToString", new BsonDocument {{ "format", "%Y-%m-%d" }, { "date", "$date" }})
+                },
+                {
+                    "totalSaleAmount", new BsonDocument("$sum", new BsonDocument("$multiply", new BsonArray { "$price", "$quantity" }))
+                },
+                {
+                    "averageQuantity", new BsonDocument("$avg", "$quantity")
+                },
+                {
+                    "count", new BsonDocument("$sum", 1)
+                }
+            };
+            var result3 = memberCollection.Aggregate().Match(query)
+                                                      .Group(groupBson3)
+                                                      .ToList();
+            #endregion
+
+            response.items = result;
             return response;
         }
     }

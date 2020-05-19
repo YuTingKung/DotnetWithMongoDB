@@ -114,10 +114,13 @@
     <Compile Include="Models\AddMemberResponse.cs" />
     <Compile Include="Models\DeleteMemberRequest.cs" />
     <Compile Include="Models\DeleteMemberResponse.cs" />
+    <Compile Include="Models\SalesTotalRequest.cs" />
     <Compile Include="Models\EditMemberRequest.cs" />
     <Compile Include="Models\EditMemberResponse.cs" />
     <Compile Include="Models\GetMemberListResponse.cs" />
+    <Compile Include="Models\SalesTotalResponse.cs" />
     <Compile Include="Models\GetMemberlnfoResponse.cs" />
+    <Compile Include="Models\SalesCollection.cs" />
     <Compile Include="Models\MembersCollection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
