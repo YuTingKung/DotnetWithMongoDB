@@ -283,7 +283,11 @@ namespace MSwebapi.Controllers
                                                       .Group(groupBson3)
                                                       .ToList();
             #endregion
-
+            #region 方法4 弱型別
+            var result4 = memberCollection.Aggregate().Match(query)
+                                                      .Group("{_id:{$dateToString:{format:\"%Y-%m-%d\",date:\"$date\"}},totalSaleAmount:{$sum:{$multiply:[\"$price\",\"$quantity\"]}},averageQuantity:{$avg:\"$quantity\"},count:{$sum:1}}")
+                                                      .ToList();
+            #endregion
             response.items = result;
             return response;
         }
