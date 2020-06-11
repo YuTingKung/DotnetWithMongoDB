@@ -114,6 +114,8 @@
     <Compile Include="Models\AddMemberResponse.cs" />
     <Compile Include="Models\DeleteMemberRequest.cs" />
     <Compile Include="Models\DeleteMemberResponse.cs" />
+    <Compile Include="Models\OrderCollection.cs" />
+    <Compile Include="Models\SalesLookup.cs" />
     <Compile Include="Models\SalesTotalRequest.cs" />
     <Compile Include="Models\EditMemberRequest.cs" />
     <Compile Include="Models\EditMemberResponse.cs" />

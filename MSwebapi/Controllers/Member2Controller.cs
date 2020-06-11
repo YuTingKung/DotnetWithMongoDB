@@ -3,6 +3,7 @@ using MongoDB.Driver;
 using MSwebapi.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -220,10 +221,12 @@ namespace MSwebapi.Controllers
             MongoClient client = new MongoClient("mongodb://localhost:27017");
             MongoDatabaseBase db = client.GetDatabase("ntut") as MongoDatabaseBase;
             var memberCollection = db.GetCollection<SalesCollection>("sales");
+            #region
             var query = Builders<SalesCollection>.Filter.And(
                             Builders<SalesCollection>.Filter.Gte(e => e.date, request.dateLower),
                             Builders<SalesCollection>.Filter.Lte(e => e.date, request.dateUpper));
-            var result = memberCollection.Aggregate().Match(query)
+            #endregion
+            var result = memberCollection.Aggregate().Match(e => e.date >= request.dateLower && e.date <= request.dateUpper)
                                                      .Group(e => new SalesTotalDate 
                                                             { 
                                                                 year = e.date.Year, 
@@ -288,7 +291,64 @@ namespace MSwebapi.Controllers
                                                       .Group("{_id:{$dateToString:{format:\"%Y-%m-%d\",date:\"$date\"}},totalSaleAmount:{$sum:{$multiply:[\"$price\",\"$quantity\"]}},averageQuantity:{$avg:\"$quantity\"},count:{$sum:1}}")
                                                       .ToList();
             #endregion
+
             response.items = result;
+            return response;
+        }
+
+        // lookup
+        [Route("api/lookup")]
+        [HttpGet]
+        public GetMemberlnfoResponse Lookup()
+        {
+            var response = new GetMemberlnfoResponse();
+            MongoClient client = new MongoClient("mongodb://localhost:27017");
+            MongoDatabaseBase db = client.GetDatabase("ntut") as MongoDatabaseBase;
+            var salesCollection = db.GetCollection<SalesCollection>("sales");
+            var ordersCollection = db.GetCollection<OrderCollection>("orders");
+            var query = Builders<SalesCollection>.Filter.Empty;
+            var lookup = salesCollection.Aggregate()
+                                        .Match(query)
+                                        .Lookup(
+                                            foreignCollection: ordersCollection,
+                                            localField: e => e._id,
+                                            foreignField: p => p.pid,
+                                            @as: (SaleWithOrders eo) => eo.orders)
+                                        .ToList();
+            return response;
+        }
+
+        // 檔案分割
+        [Route("api/write")]
+        [HttpPost]
+        public SalesTotalResponse Split(SalesTotalRequest request)
+        {
+            var response = new SalesTotalResponse();
+            string path1 = @"E:\kanjiCheck.txt";
+            string newFilePath = @"E:\ccc\"+ "file3" + ".txt";
+
+            string[] lines = File.ReadAllLines(path1);
+
+            var writes = new List<string>();
+            var fileName = "";
+            var index = 0;
+            foreach (var line in lines.Where(e => e != "" && e != "    "))
+            {
+                if (index == 0) fileName = line.Split('"')[1].Replace("|", "_").Replace("/", "_").Replace("!", "_").Replace("?", "_");
+                if (!line.Contains("---"))
+                {
+                    writes.Add(line);
+                    index++;
+                }
+                else
+                {
+                    newFilePath = @"C:\ccc\" + fileName + @".txt";
+                    File.WriteAllLines(newFilePath, writes);
+                    writes = new List<string>();
+                    index = 0;
+                }
+                
+            }
             return response;
         }
     }
